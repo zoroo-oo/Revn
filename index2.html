@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ride Summary</title>
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #111;
+      color: #fff;
+      padding: 2rem;
+    }
+    .loading {
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Ride Summary</h1>
+  <div id="result" class="loading">Calculating...</div>
+
+  <script>
+    const apiKey = "your-real-openrouteservice-api-key-here";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const start = urlParams.get("start");
+    const end = urlParams.get("end");
+    const economy = parseFloat(urlParams.get("economy"));
+
+    async function getCoordinates(place) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+      } else {
+        throw new Error("Location not found");
+      }
+    }
+
+    async function getDistance(startCoords, endCoords) {
+      const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
+        method: "POST",
+        headers: {
+          "Authorization": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ coordinates: [startCoords, endCoords] })
+      });
+      const data = await res.json();
+      return data.routes[0].summary.distance / 1000; // in km
+    }
+
+    async function calculateRide() {
+      const resultDiv = document.getElementById("result");
+      try {
+        const startCoords = await getCoordinates(start);
+        const endCoords = await getCoordinates(end);
+        const distance = await getDistance(startCoords, endCoords);
+        const fuelNeeded = (distance / economy).toFixed(2);
+        const fuelCost = (fuelNeeded * 105).toFixed(2);
+
+        resultDiv.innerHTML = `
+          <p><strong>From:</strong> ${decodeURIComponent(start)}</p>
+          <p><strong>To:</strong> ${decodeURIComponent(end)}</p>
+          <p><strong>Distance:</strong> ${distance.toFixed(2)} km</p>
+          <p><strong>Fuel Needed:</strong> ${fuelNeeded} L</p>
+          <p><strong>Estimated Fuel Cost:</strong> ₹${fuelCost}</p>
+          <p><strong>Checklist:</strong> Helmet, Jacket, Powerbank, First Aid, Vehicle Documents</p>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+      }
+    }
+
+    calculateRide();
+  </script>
+</body>
+</html>
