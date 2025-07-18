@@ -86,75 +86,19 @@
   </main>
 
   <script>
-    const form = document.getElementById("revn-form");
-    const apiKey = "YOUR_OPENROUTESERVICE_API_KEY_HERE"; // Replace with your real key
-
-    async function getCoordinates(place) {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
-      const data = await response.json();
-      if (data.length > 0) {
-        return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
-      } else {
-        throw new Error("Location not found: " + place);
-      }
-    }
-
-    async function getDistance(startCoords, endCoords) {
-      const response = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
-        method: "POST",
-        headers: {
-          "Authorization": apiKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          coordinates: [startCoords, endCoords]
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "OpenRouteService error");
-      }
-
-      const data = await response.json();
-      return data.routes[0].summary.distance / 1000; // km
-    }
-
-    form.addEventListener("submit", async (e) => {
+    document.getElementById("revn-form").addEventListener("submit", function(e) {
       e.preventDefault();
       const start = document.getElementById("start").value;
       const end = document.getElementById("end").value;
-      const economy = parseFloat(document.getElementById("economy").value);
+      const economy = document.getElementById("economy").value;
 
-      try {
-        const startCoords = await getCoordinates(start);
-        const endCoords = await getCoordinates(end);
-        const distance = await getDistance(startCoords, endCoords);
-        const fuelNeeded = (distance / economy).toFixed(2);
-        const fuelCost = (fuelNeeded * 105).toFixed(2); // ₹105/litre
+      const params = new URLSearchParams({
+        start: start,
+        end: end,
+        economy: economy
+      });
 
-        const summaryHtml = `
-          <html>
-            <head><title>Your Ride Plan</title></head>
-            <body style="font-family:Arial; padding:20px;">
-              <h1>Revn - Ride Summary</h1>
-              <p><strong>From:</strong> ${start}</p>
-              <p><strong>To:</strong> ${end}</p>
-              <p><strong>Distance:</strong> ${distance.toFixed(2)} km</p>
-              <p><strong>Fuel Needed:</strong> ${fuelNeeded} L</p>
-              <p><strong>Estimated Fuel Cost:</strong> ₹${fuelCost}</p>
-              <p><strong>Packing Checklist:</strong> Helmet, Jacket, Powerbank, First Aid, Vehicle Documents</p>
-              <p style="margin-top:20px;">Drive Safe and Ride Smart with <strong>Revn</strong> 🚀</p>
-            </body>
-          </html>
-        `;
-
-        const win = window.open("", "_blank");
-        win.document.write(summaryHtml);
-        win.document.close();
-      } catch (error) {
-        alert("Error: " + error.message);
-      }
+      window.location.href = "results.html?" + params.toString();
     });
   </script>
 </body>
