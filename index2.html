@@ -43,12 +43,13 @@
     const output = document.getElementById("output");
 
     async function getCoordinates(place) {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'RevnApp/1.0' } });
       const data = await res.json();
       if (data.length > 0) {
         return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
       } else {
-        throw new Error("Location not found");
+        throw new Error(`Location not found: ${place}`);
       }
     }
 
@@ -64,9 +65,14 @@
         })
       });
 
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to fetch route data");
+      }
+
       const data = await res.json();
-      if (data.routes) {
-        return data.routes[0].summary.distance / 1000;
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0].summary.distance / 1000; // in km
       } else {
         throw new Error("Route not found");
       }
@@ -90,7 +96,7 @@
           <p><strong>Checklist:</strong> Helmet, Jacket, Powerbank, First Aid, Vehicle Documents</p>
         `;
       } catch (error) {
-        output.innerHTML = `<p>Error: ${error.message}</p>`;
+        output.innerHTML = `<p style="color: red;">❌ ${error.message}</p>`;
       }
     }
 
