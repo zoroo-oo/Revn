@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Revn – Lux Ride Calc</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #0f0f0f 0%, #000000 100%);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 3rem;
+      color: #00f2ae;
+      text-shadow: 0 0 25px rgba(0, 255, 200, 0.8);
+      margin-bottom: 0.5rem;
+    }
+
+    p.slogan {
+      margin-top: -0.5rem;
+      margin-bottom: 2rem;
+      font-family: 'Cinzel', serif;
+      font-size: 1.2rem;
+      color: #cccccc;
+      text-shadow: 0 0 15px rgba(0,255,200,0.4);
+      letter-spacing: 1px;
+    }
+
+    form {
+      background-color: #121212;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(0, 255, 170, 0.15), 0 0 8px rgba(0, 255, 170, 0.08);
+      max-width: 450px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      animation: fadeIn 1s ease-out;
+      position: relative;
+    }
+
+    input {
+      padding: 0.9rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 1rem;
+      font-family: 'Outfit', sans-serif;
+      background-color: #1e1e1e;
+      color: #fff;
+      outline: none;
+      box-shadow: inset 0 0 5px #00ffcc30;
+    }
+
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      background: #1a1a1a;
+      width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,255,200,0.2);
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .autocomplete-item {
+      padding: 0.8rem;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .autocomplete-item:hover {
+      background-color: #2a2a2a;
+    }
+
+    button {
+      padding: 0.9rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #00f2ae, #00b0ff);
+      border: none;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      color: #000;
+      box-shadow: 0 0 10px #00f2ae80;
+      transition: transform 0.2s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    .results {
+      margin-top: 2rem;
+      background-color: #121212;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(0, 255, 170, 0.3);
+      max-width: 450px;
+      width: 100%;
+      display: none;
+      animation: fadeIn 0.8s ease-in;
+      color: #ffffff;
+      text-shadow: 0 0 4px rgba(0,255,170,0.3);
+    }
+
+    .result-item {
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+
+    .spinner {
+      margin: 2rem auto;
+      width: 50px;
+      height: 50px;
+      border: 6px solid rgba(0, 255, 200, 0.2);
+      border-top: 6px solid #00f2ae;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      box-shadow: 0 0 20px #00f2ae60;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>REVN</h1>
+  <p class="slogan">Journey Redefined</p>
+
+  <form id="rideForm">
+    <div style="position: relative;">
+      <input type="text" id="start" placeholder="Starting Point" required autocomplete="off"/>
+      <div id="startList" class="autocomplete-list"></div>
+    </div>
+    <div style="position: relative;">
+      <input type="text" id="end" placeholder="Destination" required autocomplete="off"/>
+      <div id="endList" class="autocomplete-list"></div>
+    </div>
+    <input type="number" id="economy" placeholder="Mileage (km/l)" required />
+    <button type="submit">Calculate Ride</button>
+  </form>
+
+  <div class="spinner" id="spinner"></div>
+
+  <div class="results" id="results">
+    <div class="result-item" id="fromTo"></div>
+    <div class="result-item" id="distance"></div>
+    <div class="result-item" id="fuel"></div>
+    <div class="result-item" id="cost"></div>
+    <div class="result-item" id="checklist"></div>
+  </div>
+
+  <script>
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijg0ZDAwNWNmMTdjMjQyNjVhYWRjMGJmZTFlNWIyNmUzIiwiaCI6Im11cm11cjY0In0=";
+    const INR_TO_USD = 83;
+
+    const form = document.getElementById("rideForm");
+    const spinner = document.getElementById("spinner");
+    const results = document.getElementById("results");
+
+    async function getCoordinates(place) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`, {
+        headers: { 'User-Agent': 'RevnLux/1.0' }
+      });
+      const data = await res.json();
+      if (data.length > 0) {
+        return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+      }
+      throw new Error("Location not found");
+    }
+
+    async function getDistance(startCoords, endCoords) {
+      const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
+        method: "POST",
+        headers: {
+          "Authorization": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ coordinates: [startCoords, endCoords] })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.routes) throw new Error("Failed to fetch route");
+      return data.routes[0].summary.distance / 1000;
+    }
+
+    async function autocomplete(inputId, listId) {
+      const input = document.getElementById(inputId);
+      const list = document.getElementById(listId);
+
+      input.addEventListener("input", async () => {
+        const value = input.value.trim();
+        list.innerHTML = "";
+        if (value.length < 3) return;
+
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`, {
+          headers: { 'User-Agent': 'RevnLux/1.0' }
+        });
+        const data = await res.json();
+
+        data.slice(0, 5).forEach(item => {
+          const option = document.createElement("div");
+          option.classList.add("autocomplete-item");
+          option.textContent = item.display_name;
+          option.addEventListener("click", () => {
+            input.value = item.display_name;
+            list.innerHTML = "";
+          });
+          list.appendChild(option);
+        });
+      });
+
+      input.addEventListener("blur", () => {
+        setTimeout(() => list.innerHTML = "", 200);
+      });
+    }
+
+    autocomplete("start", "startList");
+    autocomplete("end", "endList");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      spinner.style.display = "block";
+      results.style.display = "none";
+
+      const start = document.getElementById("start").value;
+      const end = document.getElementById("end").value;
+      const economy = parseFloat(document.getElementById("economy").value);
+
+      try {
+        const startCoords = await getCoordinates(start);
+        const endCoords = await getCoordinates(end);
+        const distance = await getDistance(startCoords, endCoords);
+        const fuelNeeded = (distance / economy).toFixed(2);
+        const fuelCostInr = (fuelNeeded * 105).toFixed(2);
+        const fuelCostUsd = (fuelCostInr / INR_TO_USD).toFixed(2);
+
+        document.getElementById("fromTo").innerHTML = `<strong>From:</strong> ${start} → <strong>To:</strong> ${end}`;
+        document.getElementById("distance").innerHTML = `<strong>Distance:</strong> ${distance.toFixed(2)} km`;
+        document.getElementById("fuel").innerHTML = `<strong>Fuel Needed:</strong> ${fuelNeeded} L`;
+        document.getElementById("cost").innerHTML = `<strong>Fuel Cost:</strong> ₹${fuelCostInr} / $${fuelCostUsd}`;
+        document.getElementById("checklist").innerHTML = `<strong>Checklist:</strong> Helmet, Jacket, Powerbank, First Aid, Documents`;
+
+        spinner.style.display = "none";
+        results.style.display = "block";
+      } catch (error) {
+        spinner.style.display = "none";
+        alert("Error: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
