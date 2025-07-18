@@ -1,32 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ride Summary</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Ride Plan</title>
   <style>
     body {
-      font-family: 'Outfit', sans-serif;
-      background: #111;
+      background-color: #0f0f0f;
       color: #fff;
+      font-family: 'Outfit', sans-serif;
       padding: 2rem;
     }
-    .loading {
-      font-size: 1.2rem;
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #1a1a1a;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.5);
+    }
+    h2 {
+      color: #00df8e;
+    }
+    p {
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
-  <h1>Ride Summary</h1>
-  <div id="result" class="loading">Calculating...</div>
+  <div class="container">
+    <h2>Ride Plan</h2>
+    <div id="output">Loading...</div>
+  </div>
 
   <script>
-    const apiKey = "your-real-openrouteservice-api-key-here";
+    const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijg0ZDAwNWNmMTdjMjQyNjVhYWRjMGJmZTFlNWIyNmUzIiwiaCI6Im11cm11cjY0In0=";
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const start = urlParams.get("start");
-    const end = urlParams.get("end");
-    const economy = parseFloat(urlParams.get("economy"));
+    const params = new URLSearchParams(window.location.search);
+    const start = params.get("start");
+    const end = params.get("end");
+    const economy = parseFloat(params.get("economy"));
+    const output = document.getElementById("output");
 
     async function getCoordinates(place) {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}`);
@@ -45,35 +59,42 @@
           "Authorization": apiKey,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ coordinates: [startCoords, endCoords] })
+        body: JSON.stringify({
+          coordinates: [startCoords, endCoords]
+        })
       });
+
       const data = await res.json();
-      return data.routes[0].summary.distance / 1000; // in km
+      if (data.routes) {
+        return data.routes[0].summary.distance / 1000;
+      } else {
+        throw new Error("Route not found");
+      }
     }
 
-    async function calculateRide() {
-      const resultDiv = document.getElementById("result");
+    async function planRide() {
       try {
         const startCoords = await getCoordinates(start);
         const endCoords = await getCoordinates(end);
         const distance = await getDistance(startCoords, endCoords);
-        const fuelNeeded = (distance / economy).toFixed(2);
-        const fuelCost = (fuelNeeded * 105).toFixed(2);
 
-        resultDiv.innerHTML = `
-          <p><strong>From:</strong> ${decodeURIComponent(start)}</p>
-          <p><strong>To:</strong> ${decodeURIComponent(end)}</p>
+        const fuelNeeded = (distance / economy).toFixed(2);
+        const fuelCost = (fuelNeeded * 105).toFixed(2); // ₹105 per litre
+
+        output.innerHTML = `
+          <p><strong>From:</strong> ${start}</p>
+          <p><strong>To:</strong> ${end}</p>
           <p><strong>Distance:</strong> ${distance.toFixed(2)} km</p>
           <p><strong>Fuel Needed:</strong> ${fuelNeeded} L</p>
           <p><strong>Estimated Fuel Cost:</strong> ₹${fuelCost}</p>
           <p><strong>Checklist:</strong> Helmet, Jacket, Powerbank, First Aid, Vehicle Documents</p>
         `;
-      } catch (err) {
-        resultDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+      } catch (error) {
+        output.innerHTML = `<p>Error: ${error.message}</p>`;
       }
     }
 
-    calculateRide();
+    planRide();
   </script>
 </body>
 </html>
